@@ -1,16 +1,16 @@
 services:
   - type: web
-    name: esp32-iot-web
+    name: render-iot-web
     env: node
     branch: main
     buildCommand: npm install
-    startCommand: node server.js
-    plan: free
-    autoDeploy: true
+    startCommand: npm start
 
-  - type: pgsql
-    name: esp32-iot-db
+  - type: key-value
+    name: render-iot-kv
     plan: free
-    ipAllowList:
-      - source: 0.0.0.0/0 
-        description: allow all
+
+  - type: pgsql          # ← НОВЕ
+    name: render-iot-db
+    plan: free
+    ipAllowList: []       # дозволяє доступ з твого Web Service
