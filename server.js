@@ -1,21 +1,18 @@
 const express = require('express');
-const bodyParser = require('body-parser');
+const { Pool } = require('pg');
 const path = require('path');
-const Redis = require('ioredis');
-const { Pool } = require('pg');           // ← НОВА БІБЛІОТЕКА
 
 const app = express();
-app.use(bodyParser.json());
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.json());
+app.use(express.static('public'));
 
-const redis = new Redis(process.env.REDIS_URL || process.env.KEY_VALUE_URL);
-
-// ←←← НОВЕ: PostgreSQL
+// Підключення до БД (Render сам додасть DATABASE_URL)
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,  // Render додасть автоматично
+  connectionString: process.env.DATABASE_URL,
   ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false
 });
-// автоматично створить таблицю при першому запуску
+
+// Створення таблиці при першому запуску
 pool.query(`
   CREATE TABLE IF NOT EXISTS sensor_data (
     id SERIAL PRIMARY KEY,
@@ -26,43 +23,31 @@ pool.query(`
   )
 `);
 
-const LIST_KEY = 'sensor:points';
-
+// Приймаємо дані з ESP32
 app.post('/data', async (req, res) => {
   try {
-    const { soil, temp, hum } = req.body;
-    if (soil == null || temp == null || hum == null)
-      return res.status(400).json({ok:false, error:'missing'});
-
-    const point = { t: Date.now(), soil: Number(soil), temp: Number(temp), hum: Number(hum) };
-    const payload = JSON.stringify(point);
-
-    // 1. Redis (для живих графіків)
-    await redis.rpush(LIST_KEY, payload);
-    await redis.ltrim(LIST_KEY, -10000, -1);
-    await redis.publish('sensor:channel', payload);
-
-    // 2. PostgreSQL (назавжди)
+    const { temp, hum, soil } = req.body;
     await pool.query(
-      'INSERT INTO sensor_data(temp, hum, soil) VALUES($1,$2,$3)',
-      [point.temp, point.hum, point.soil]
+      'INSERT INTO sensor_data (temp, hum, soil) VALUES ($1, $2, $3)',
+      [temp, hum, soil]
     );
-
-    res.json({ok:true});
+    res.json({ ok: true });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ok:false});
+    res.status(500).json({ ok: false });
   }
 });
 
-// Новий ендпоінт: історія з БД (будь-який період)
-app.get('/history-db', async (req, res) => {
+// Віддаємо історію
+app.get('/history', async (req, res) => {
   const days = parseInt(req.query.days) || 7;
   const result = await pool.query(
-    `SELECT t, temp, hum, soil 
-     FROM sensor_data 
-     WHERE t > NOW() - INTERVAL '${days} days'
+    `SELECT t, temp, hum, soil FROM sensor_data 
+     WHERE t > NOW() - INTERVAL '${days} days' 
      ORDER BY t`
   );
   res.json(result.rows);
 });
+
+const port = process.env.PORT || 3000;
+app.listen(port, () => console.log(`Сервер на порту ${port}`));
