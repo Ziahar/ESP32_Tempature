@@ -1,13 +1,14 @@
-<!DOCTYPE html>
+HTML<!DOCTYPE html>
 <html lang="uk">
 <head>
   <meta charset="utf-8">
   <title>ESP32 Метеостанція</title>
   <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
   <style>
-    body { background: #000; color: #0f0; font-family: Arial; text-align: center; margin: 20px; }
-    button { padding: 10px 20px; margin: 5px; font-size: 18px; }
-    h1 { font-size: 48px; }
+    body { background:#000; color:#0f0; font-family:Arial; text-align:center; margin:20px; }
+    button { padding:10px 20px; margin:5px; font-size:18px; background:#111; color:#0f0; border:1px solid #0f0; cursor:pointer; }
+    button:hover { background:#0f0; color:#000; }
+    h1 { font-size:48px; margin:20px; }
   </style>
 </head>
 <body>
@@ -22,31 +23,46 @@
 
   <script>
     const chartDiv = document.getElementById('chart');
-    Plotly.newPlot(chartDiv, [], {title: "Завантаження...", paper_bgcolor: '#000', plot_bgcolor: '#111', font: {color: '#0f0'}});
+
+    // Початкове завантаження
+    Plotly.newPlot(chartDiv, [], {
+      title: "Завантаження даних...",
+      paper_bgcolor: '#000',
+      plot_bgcolor: '#111',
+      font: {color: '#0f0'}
+    });
 
     async function load(days = 7) {
-      const res = await fetch(`/history?days=${days}`);
-      const data = await res.json();
+      try {
+        const res = await fetch(`/history?days=${days}`);
+        const data = await res.json();
 
-      const times = data.map(p => new Date(p.t).toLocaleString());
-      const temp = data.map(p => p.temp);
-      const hum = data.map(p => p.hum);
-      const soil = data.map(p => p.soil);
+        const times = data.map(p => new Date(p.t).toLocaleString());
+        const temp = data.map(p => p.temp);
+        const hum = data.map(p => p.hum);
+        const soil = data.map(p => p.soil || null);
 
-      Plotly.react(chartDiv, [
-        { x: times, y: temp, name: 'Температура °C', line: {color: '#ff4444'} },
-        { x: times, y: hum,  name: 'Вологість повітря %', line: {color: '#4444ff'} },
-        { x: times, y: soil, name: 'Вологість ґрунту (0-4095)', yaxis: 'y2', line: {color: '#44ff44'} }
-      ], {
-        title: `Дані за ${days === 1 ? 'останній день' : days + ' днів'}`,
-        yaxis: {title: '°C / %', color: '#ff4444'},
-        yaxis2: {title: 'Ґрунт', overlaying: 'y', side: 'right', color: '#44ff44'},
-        paper_bgcolor: '#000', plot_bgcolor: '#111', font: {color: '#0f0'}
-      });
+        Plotly.react(chartDiv, [
+          { x: times, y: temp, name: 'Температура °C', line: {color: '#ff4444'} },
+          { x: times, y: hum,  name: 'Вологість повітря %', line: {color: '#4444ff'} },
+          { x: times, y: soil, name: 'Вологість ґрунту', yaxis: 'y2', line: {color: '#44ff44'} }
+        ], {
+          title: `Дані за ${days === 1 ? 'останній день' : days + ' днів'}`,
+          yaxis: { title: 'Температура / Вологість', color: '#ff4444' },
+          yaxis2: { title: 'Ґрунт (0-4095)', overlaying: 'y', side: 'right', color: '#44ff44' },
+          paper_bgcolor: '#000',
+          plot_bgcolor: '#111',
+          font: {color: '#0f0'}
+        });
+      } catch (err) {
+        console.error("Помилка завантаження:", err);
+        Plotly.newPlot(chartDiv, [], {title: "Немає даних або помилка сервера"});
+      }
     }
 
+    // Перше завантаження + автооновлення кожні 30 секунд
     load(1);
-    setInterval(() => load(1), 30000); // оновлення кожні 30 сек
+    setInterval(() => load(1), 30000);
   </script>
 </body>
 </html>
