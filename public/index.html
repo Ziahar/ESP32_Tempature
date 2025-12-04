@@ -1,0 +1,23 @@
+<div>
+  Показати за:
+  <button onclick="loadPeriod(1)">1 день</button>
+  <button onclick="loadPeriod(3)">3 дні</button>
+  <button onclick="loadPeriod(7)">тиждень</button>
+  <button onclick="loadPeriod(30)">місяць</button>
+</div>
+<div id="chart" style="width:95%;height:60vh;margin:20px auto;"></div>
+
+<script>
+// ... той самий код великих цифр зверху ...
+
+async function loadPeriod(days) {
+  const res = await fetch(`/history-db?days=${days}`);
+  const data = await res.json();
+  const times = data.map(p => new Date(p.t).toLocaleString());
+  Plotly.react('chart', [
+    {y:data.map(p=>p.temp), x:times, name:'Температура °C'},
+    {y:data.map(p=>p.hum),  x:times, name:'Вологість повітря %'},
+    {y:data.map(p=>p.soil), x:times, name:'Ґрунт', yaxis:'y2'}
+  ], { /* ті самі стилі */ });
+}
+</script>

@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: render-iot-web
+    env: node
+    branch: main
+    buildCommand: npm install
+    startCommand: npm start
+
+  - type: key-value
+    name: render-iot-kv
+    plan: free
+
+  - type: pgsql          # ← НОВЕ
+    name: render-iot-db
+    plan: free
+    ipAllowList: []       # дозволяє доступ з твого Web Service
