@@ -1,17 +1,14 @@
 services:
   - type: web
-    name: esp32-iot
+    name: esp32-dashboard
     env: node
+    plan: free
     branch: main
     buildCommand: npm install
-    startCommand: npm start
-    plan: free
-
-  - type: key-value
-    name: esp32-redis
-    plan: free
+    startCommand: node server.js
+    autoDeploy: true
 
   - type: pgsql
     name: esp32-db
     plan: free
-    ipAllowList: []
+    ipAllowList: []          # дозволяє доступ з твого web-сервісу
